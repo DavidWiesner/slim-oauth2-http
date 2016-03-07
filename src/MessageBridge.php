@@ -15,23 +15,16 @@ class MessageBridge
      */
     public static function newOauth2Request(\Slim\Http\Request $request)
     {
-        $post = $request->post();
-        if (substr_count($request->headers()->get('Content-Type'), '/json')) {
-            $post = $request->getBody();
-            if (is_string($post)) {
-                $post = json_decode($post, true) ?: [];
-            }
-        }
-
+        $post = $request->getParsedBody();
         return new \OAuth2\Request(
-            $request->get(),
-            $post,
+            $request->getQueryParams(),
+            $post === null ? [] : $post,
             [],
-            $request->cookies()->getIterator()->getArrayCopy(),
+            $request->getCookieParams(),
             [],
-            \Slim\Environment::getInstance()->getIterator()->getArrayCopy(),
+            \Slim\Http\Environment::mock($_ENV)->getIterator()->getArrayCopy(),
             $request->getBody(),
-            self::cleanupHeaders($request->headers())
+            self::cleanupHeaders($request->getHeaders())
         );
     }
 
@@ -39,18 +32,19 @@ class MessageBridge
      * Copies values from the given \Oauth2\Response to the given \Slim\Http\Response.
      *
      * @param \OAuth2\ResponseInterface $oauth2Response The OAuth2 server response.
-     * @param \Slim\Http\Response       $slimResponse   The slim framework response.
+     * @param \Slim\Http\Response $slimResponse The slim framework response.
      *
      * @return void
      */
-    public static function mapResponse(\OAuth2\ResponseInterface $oauth2Response, \Slim\Http\Response $slimResponse)
+    public static function mapResponse(\OAuth2\Response $oauth2Response, \Slim\Http\Response &$slimResponse)
     {
         foreach ($oauth2Response->getHttpHeaders() as $key => $value) {
-            $slimResponse->headers->set($key, $value);
+            $slimResponse = $slimResponse->withHeader($key, $value);
         }
-
-        $slimResponse->status($oauth2Response->getStatusCode());
-        $slimResponse->setBody($oauth2Response->getResponseBody());
+        $slimResponse = $slimResponse->withStatus($oauth2Response->getStatusCode());
+        $body = $slimResponse->getBody();
+        $body->write($oauth2Response->getResponseBody());
+        $body->rewind();
     }
 
     /**
@@ -59,11 +53,11 @@ class MessageBridge
      * Slim will convert all headers to Camel-Case style. There are certain headers such as PHP_AUTH_USER that the
      * OAuth2 library requires CAPS_CASE format. This method will adjust those headers as needed.
      *
-     * @param \Slim\Http\Headers $uncleanHeaders The headers to be cleaned.
+     * @param \Slim\Http\Headers|array $uncleanHeaders The headers to be cleaned.
      *
      * @return array The cleaned headers
      */
-    private static function cleanupHeaders(\Slim\Http\Headers $uncleanHeaders)
+    private static function cleanupHeaders($uncleanHeaders)
     {
         $cleanHeaders = [];
         $headerMap = [
@@ -74,13 +68,30 @@ class MessageBridge
         ];
         foreach ($uncleanHeaders as $key => $value) {
             if (!array_key_exists($key, $headerMap)) {
-                $cleanHeaders[$key] = $value;
+                $cleanHeaders[$key] = self::reduceHeader($value);
                 continue;
             }
 
-            $cleanHeaders[$headerMap[$key]] = $value;
+            $cleanHeaders[$headerMap[$key]] = self::reduceHeader($value);
         }
 
         return $cleanHeaders;
+    }
+
+    /**
+     * reduce an array to a none array representation.
+     * If value is an array with size 1 element will replace with the value of the first element e.g.:
+     * [123] => 123
+     * If element is an array with more than one element, element will be replace with ',' imploded string e.g.:
+     * ['1','2'] => '1,2'
+     * @param $value
+     * @return mixed
+     */
+    private static function reduceHeader($value)
+    {
+        if (is_array($value)) {
+            return count($value) == 1 ? $value[0] : implode(',', $value);
+        }
+        return $value;
     }
 }
