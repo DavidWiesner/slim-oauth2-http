@@ -42,7 +42,7 @@ class MessageBridge
         foreach ($oauth2Response->getHttpHeaders() as $key => $value) {
             $slimResponse = $slimResponse->withHeader($key, $value);
         }
-        $slimResponse = $slimResponse->withStatus($oauth2Response->getStatusCode());
+        $slimResponse = $slimResponse->withStatus($oauth2Response->getStatusCode(), $oauth2Response->getStatusText());
         $body = $slimResponse->getBody();
         $body->write($oauth2Response->getResponseBody());
         $body->rewind();

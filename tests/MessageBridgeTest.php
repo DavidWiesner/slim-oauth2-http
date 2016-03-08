@@ -112,6 +112,8 @@ final class MessageBridgeTest extends \PHPUnit_Framework_TestCase
             200,
             ['content-type' => 'application/json', 'fizz' => 'buzz']
         );
+        $statusText = 'All fine';
+        $oauth2Response->setStatusCode(200, $statusText);
         $body = new \Slim\Http\RequestBody();
         $body->write('will be over written');
         $body->rewind();
@@ -120,6 +122,7 @@ final class MessageBridgeTest extends \PHPUnit_Framework_TestCase
         MessageBridge::mapResponse($oauth2Response, $slimResponse);
 
         $this->assertSame(200, $slimResponse->getStatusCode());
+        $this->assertSame($statusText, $slimResponse->getReasonPhrase());
         $this->assertSame(
             ['content-type' => 'application/json', 'fizz' => 'buzz'],
             self::reduceHeaders($slimResponse->getHeaders())
