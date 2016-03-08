@@ -47,6 +47,7 @@ final class MessageBridgeTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('123', $slimRequest->getParsedBodyParam('abc'));
         $this->assertSame('bar', $slimRequest->getParsedBodyParam('foo'));
         $this->assertSame('2', $slimRequest->getQueryParam('two'));
+        $this->assertSame('POST', $slimRequest->getMethod());
 
 
         $oauth2Request = MessageBridge::newOauth2Request($slimRequest);
@@ -54,8 +55,9 @@ final class MessageBridgeTest extends \PHPUnit_Framework_TestCase
         $this->assertSame(15, $oauth2Request->headers('Content_Length'));
         $this->assertSame('application/x-www-form-urlencoded', $oauth2Request->headers('Content_Type'));
         $this->assertSame('123', $oauth2Request->request('abc'));
+        $this->assertSame('bar', $oauth2Request->request('foo'));
         $this->assertSame('2', $oauth2Request->query('two'));
-
+        $this->assertSame('POST', $oauth2Request->server('REQUEST_METHOD'));
     }
 
     /**

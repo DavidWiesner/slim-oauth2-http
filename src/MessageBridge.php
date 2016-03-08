@@ -16,13 +16,14 @@ class MessageBridge
     public static function newOauth2Request(\Slim\Http\Request $request)
     {
         $post = $request->getParsedBody();
+        $post = ($post === false || $post === null) ? [] : $post;
         return new \OAuth2\Request(
             $request->getQueryParams(),
-            $post === null ? [] : $post,
-            [],
+            $post,
+            $request->getAttributes(),
             $request->getCookieParams(),
             [],
-            \Slim\Http\Environment::mock($_ENV)->getIterator()->getArrayCopy(),
+            $request->getServerParams(),
             $request->getBody(),
             self::cleanupHeaders($request->getHeaders())
         );
